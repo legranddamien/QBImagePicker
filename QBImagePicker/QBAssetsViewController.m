@@ -13,6 +13,7 @@
 #import "QBImagePickerController.h"
 #import "QBAssetCell.h"
 #import "QBVideoIndicatorView.h"
+#import "QBPreviewViewController.h"
 
 static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     return CGSizeMake(size.width * scale, size.height * scale);
@@ -54,7 +55,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 
 @end
 
-@interface QBAssetsViewController () <PHPhotoLibraryChangeObserver, UICollectionViewDelegateFlowLayout>
+@interface QBAssetsViewController () <PHPhotoLibraryChangeObserver, UICollectionViewDelegateFlowLayout, UIViewControllerPreviewingDelegate>
 
 @property (nonatomic, strong) IBOutlet UIBarButtonItem *doneButton;
 
@@ -76,6 +77,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     
     [self setUpToolbarItems];
     [self resetCachedAssets];
+    [self setUp3DTouch];
     
     // Register observer
     [[PHPhotoLibrary sharedPhotoLibrary] registerChangeObserver:self];
@@ -222,6 +224,20 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     }
 }
 
+
+#pragma mark - 3DTouch
+
+- (void)setUp3DTouch
+{
+    UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+    if([window.traitCollection respondsToSelector:@selector(forceTouchCapability)])
+    {
+        if(window.traitCollection.forceTouchCapability == UIForceTouchCapabilityAvailable)
+        {
+            [self registerForPreviewingWithDelegate:self sourceView:self.view];
+        }
+    }
+}
 
 #pragma mark - Fetching Assets
 
@@ -656,6 +672,46 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     CGFloat width = (CGRectGetWidth(self.view.frame) - 2.0 * (numberOfColumns - 1)) / numberOfColumns;
     
     return CGSizeMake(width, width);
+}
+
+#pragma mark - UIViewControllerPreviewingDelegate
+
+- (nullable UIViewController *)previewingContext:(id <UIViewControllerPreviewing>)previewingContext viewControllerForLocation:(CGPoint)location
+{
+    location.y += self.collectionView.contentOffset.y;
+    location.x += self.collectionView.contentOffset.x;
+    
+    NSIndexPath *indexPath = [self.collectionView indexPathForItemAtPoint:location];
+    
+    if(indexPath)
+    {
+        PHAsset *asset = self.fetchResult[indexPath.item];
+        QBAssetCell *cell = (QBAssetCell *)[self.collectionView cellForItemAtIndexPath:indexPath];
+        UIImage *thumbnail = (cell) ? cell.imageView.image : nil;
+
+        if(cell)
+        {
+            CGRect frame = cell.bounds;
+            UIView *childView = cell;
+            
+            while (childView != self.view)
+            {
+                frame = [childView convertRect:frame toView:childView.superview];
+                childView = childView.superview;
+            }
+            
+            previewingContext.sourceRect = frame;
+        }
+        
+        return [[QBPreviewViewController alloc] initWithAsset:asset andThumbnail:thumbnail];
+    }
+    
+    return nil;
+}
+
+- (void)previewingContext:(id <UIViewControllerPreviewing>)previewingContext commitViewController:(UIViewController *)viewControllerToCommit
+{
+    //Commit nothing
 }
 
 @end
