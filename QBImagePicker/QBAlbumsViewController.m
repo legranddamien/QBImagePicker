@@ -172,14 +172,23 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     for (NSNumber *assetCollectionSubtype in assetCollectionSubtypes) {
         PHAssetCollection *assetCollection = smartAlbums[assetCollectionSubtype];
         
-        if (assetCollection) {
+        if (assetCollection
+            && ((!self.imagePickerController.showEmptyCollections
+                 && assetCollection.estimatedAssetCount > 0)
+                || self.imagePickerController.showEmptyCollections ))
+        {
             [assetCollections addObject:assetCollection];
         }
     }
     
     // Fetch user albums
     [userAlbums enumerateObjectsUsingBlock:^(PHAssetCollection *assetCollection, NSUInteger index, BOOL *stop) {
-        [assetCollections addObject:assetCollection];
+        if(((!self.imagePickerController.showEmptyCollections
+             && assetCollection.estimatedAssetCount > 0)
+            || self.imagePickerController.showEmptyCollections ))
+        {
+            [assetCollections addObject:assetCollection];
+        }
     }];
     
     self.assetCollections = assetCollections;

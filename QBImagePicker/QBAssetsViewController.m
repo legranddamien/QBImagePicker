@@ -91,6 +91,8 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     self.navigationItem.title = self.assetCollection.localizedTitle;
     self.navigationItem.prompt = self.imagePickerController.prompt;
     
+    self.collectionView.scrollsToTop = NO;
+    
     // Configure collection view
     self.collectionView.allowsMultipleSelection = self.imagePickerController.allowsMultipleSelection;
     
