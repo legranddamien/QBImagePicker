@@ -29,6 +29,13 @@ typedef NS_ENUM(NSUInteger, QBImagePickerMediaType) {
     QBImagePickerMediaTypeVideo
 };
 
+@protocol QBImagePickerAlbumsHeaderProtocol <NSObject>
+
+- (void)updateName:(NSString *)name;
++ (CGFloat)heightFor:(NSString *)name andWidth:(CGFloat)width;
+
+@end
+
 @interface QBImagePickerController : UIViewController
 
 @property (nonatomic, weak) id<QBImagePickerControllerDelegate> delegate;
@@ -48,5 +55,12 @@ typedef NS_ENUM(NSUInteger, QBImagePickerMediaType) {
 
 @property (nonatomic, assign) NSUInteger numberOfColumnsInPortrait;
 @property (nonatomic, assign) NSUInteger numberOfColumnsInLandscape;
+
+/**
+ *  The class should implement QBImagePickerAlbumsHeaderProtocol
+ */
+@property (nonatomic, strong) Class headerClass;
+
+@property (nonatomic) BOOL debug;
 
 @end

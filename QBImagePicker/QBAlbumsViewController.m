@@ -26,12 +26,18 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 
 @end
 
-@interface QBAlbumsViewController () <PHPhotoLibraryChangeObserver>
+@interface QBAlbumsViewController ()
 
 @property (nonatomic, strong) IBOutlet UIBarButtonItem *doneButton;
 
 @property (nonatomic, copy) NSArray *fetchResults;
-@property (nonatomic, copy) NSArray *assetCollections;
+
+@property (nonatomic, strong) NSMutableArray<NSArray *> *assetCollections;
+
+@property (nonatomic, strong) NSMutableDictionary *results;
+@property (nonatomic, strong) NSMutableDictionary *resultsUpdate;
+
+@property (nonatomic) BOOL showLoading;
 
 @end
 
@@ -48,10 +54,50 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     PHFetchResult *userAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
     self.fetchResults = @[smartAlbums, userAlbums];
     
-    [self updateAssetCollections];
+    [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"LoadingCell"];
     
-    // Register observer
-    [[PHPhotoLibrary sharedPhotoLibrary] registerChangeObserver:self];
+    self.assetCollections = [NSMutableArray arrayWithCapacity:3];
+    
+    _showLoading = YES;
+    
+    [self updateAssetCollectionsForSection:0 withCompletions:^{
+        [self.tableView reloadData];
+        
+        // Register observer
+//        [[PHPhotoLibrary sharedPhotoLibrary] registerChangeObserver:self];
+        
+        NSInteger firstCount = self.assetCollections.count;
+        
+        [self updateAssetCollectionsForSection:1 withCompletions:^{
+            
+            NSInteger secondCount = self.assetCollections.count;
+            
+            if(secondCount > firstCount)
+            {
+                [self.tableView beginUpdates];
+                [self.tableView insertSections:[NSIndexSet indexSetWithIndex:secondCount-1] withRowAnimation:UITableViewRowAnimationBottom];
+                [self.tableView endUpdates];
+            }
+            
+            [self updateAssetCollectionsForSection:3 withCompletions:^{
+               
+                _showLoading = NO;
+                
+                [self.tableView beginUpdates];
+                
+                [self.tableView deleteSections:[NSIndexSet indexSetWithIndex:self.assetCollections.count-1] withRowAnimation:UITableViewRowAnimationBottom];
+                
+                if(self.assetCollections.count > secondCount)
+                {
+                    [self.tableView insertSections:[NSIndexSet indexSetWithIndex:self.assetCollections.count-1] withRowAnimation:UITableViewRowAnimationBottom];
+                }
+                
+                [self.tableView endUpdates];
+                
+            }];
+            
+        }];
+    }];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -76,7 +122,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 - (void)dealloc
 {
     // Deregister observer
-    [[PHPhotoLibrary sharedPhotoLibrary] unregisterChangeObserver:self];
+//    [[PHPhotoLibrary sharedPhotoLibrary] unregisterChangeObserver:self];
 }
 
 
@@ -86,7 +132,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 {
     QBAssetsViewController *assetsViewController = segue.destinationViewController;
     assetsViewController.imagePickerController = self.imagePickerController;
-    assetsViewController.assetCollection = self.assetCollections[self.tableView.indexPathForSelectedRow.row];
+    assetsViewController.assetCollection = self.assetCollections[self.tableView.indexPathForSelectedRow.section][self.tableView.indexPathForSelectedRow.row];
 }
 
 
@@ -149,49 +195,65 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 
 #pragma mark - Fetching Asset Collections
 
-- (void)updateAssetCollections
+- (void)updateAssetCollectionsForSection:(NSInteger)section withCompletions:(void(^)(void))completion
 {
-    NSMutableArray *assetCollections = [NSMutableArray array];
-    
-    // Filter albums
-    NSArray *assetCollectionSubtypes = self.imagePickerController.assetCollectionSubtypes;
-    NSMutableDictionary *smartAlbums = [NSMutableDictionary dictionaryWithCapacity:assetCollectionSubtypes.count];
-    NSMutableArray *userAlbums = [NSMutableArray array];
-    
-    for (PHFetchResult *fetchResult in self.fetchResults) {
-        [fetchResult enumerateObjectsUsingBlock:^(PHAssetCollection *assetCollection, NSUInteger index, BOOL *stop) {
-            if (assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeAlbumRegular) {
-                [userAlbums addObject:assetCollection];
-            } else if ([assetCollectionSubtypes containsObject:@(assetCollection.assetCollectionSubtype)]) {
-                smartAlbums[@(assetCollection.assetCollectionSubtype)] = assetCollection;
-            }
-        }];
-    }
-    
-    // Fetch smart albums
-    for (NSNumber *assetCollectionSubtype in assetCollectionSubtypes) {
-        PHAssetCollection *assetCollection = smartAlbums[assetCollectionSubtype];
+    dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
         
-        if (assetCollection
-            && ((!self.imagePickerController.showEmptyCollections
-                 && assetCollection.estimatedAssetCount > 0)
-                || self.imagePickerController.showEmptyCollections ))
-        {
-            [assetCollections addObject:assetCollection];
+        NSMutableArray *albums = [NSMutableArray array];
+        _resultsUpdate = [NSMutableDictionary dictionaryWithDictionary:_results];
+        
+        
+        for (PHFetchResult *fetchResult in self.fetchResults) {
+            [fetchResult enumerateObjectsUsingBlock:^(PHAssetCollection *assetCollection, NSUInteger index, BOOL *stop) {
+                
+                if((section == 0 && (assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumUserLibrary
+                                    || assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumFavorites
+                                    || assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumPanoramas))
+                   
+                   || (section == 1 && (assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeAlbumCloudShared))
+                   
+                   || (section == 2 && (assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeAlbumRegular
+                                        || assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeAlbumSyncedAlbum)))
+                {
+                    if((!self.imagePickerController.showEmptyCollections
+                        && assetCollection.estimatedAssetCount > 0
+                        && [self resultsForAssetCollection:assetCollection safe:NO].count > 0)
+                        || self.imagePickerController.showEmptyCollections )
+                    {
+                         [albums addObject:assetCollection];
+                    }
+                }
+                
+            }];
         }
-    }
-    
-    // Fetch user albums
-    [userAlbums enumerateObjectsUsingBlock:^(PHAssetCollection *assetCollection, NSUInteger index, BOOL *stop) {
-        if(((!self.imagePickerController.showEmptyCollections
-             && assetCollection.estimatedAssetCount > 0)
-            || self.imagePickerController.showEmptyCollections ))
+        
+        
+        if(section == 0)
         {
-            [assetCollections addObject:assetCollection];
+            [albums sortUsingComparator:^NSComparisonResult(PHAssetCollection *  _Nonnull obj1, PHAssetCollection *  _Nonnull obj2) {
+                if(obj1.assetCollectionSubtype < obj2.assetCollectionSubtype) return NSOrderedDescending;
+                else if(obj1.assetCollectionSubtype > obj2.assetCollectionSubtype) return NSOrderedAscending;
+                return NSOrderedSame;
+            }];
         }
-    }];
-    
-    self.assetCollections = assetCollections;
+        else
+        {
+            [albums sortUsingComparator:^NSComparisonResult(PHAssetCollection *  _Nonnull obj1, PHAssetCollection *  _Nonnull obj2) {
+                return [obj1.localizedTitle compare:obj2.localizedTitle];
+            }];
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            _results = [NSMutableDictionary dictionaryWithDictionary:_resultsUpdate];
+            _resultsUpdate = nil;
+            
+            [self.assetCollections addObject:[NSArray arrayWithArray:albums]];
+            if(completion) completion();
+            
+        });
+        
+    });
 }
 
 - (UIImage *)placeholderImageWithSize:(CGSize)size
@@ -263,27 +325,15 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     self.doneButton.enabled = [self isMinimumSelectionLimitFulfilled];
 }
 
-
-#pragma mark - UITableViewDataSource
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+- (PHFetchResult *)resultsForAssetCollection:(PHAssetCollection *)assetCollection safe:(BOOL)safe
 {
-    return 1;
-}
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
-{
-    return self.assetCollections.count;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    QBAlbumCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AlbumCell" forIndexPath:indexPath];
-    cell.tag = indexPath.row;
-    cell.borderWidth = 1.0 / self.traitCollection.displayScale;
+    NSMutableDictionary *dict = (safe) ? _results : _resultsUpdate;
+    if(dict == nil)
+    {
+        return nil;
+    }
     
-    // Thumbnail
-    PHAssetCollection *assetCollection = self.assetCollections[indexPath.row];
+    if(dict[assetCollection]) return dict[assetCollection];
     
     PHFetchOptions *options = [PHFetchOptions new];
     options.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:YES]];
@@ -301,7 +351,72 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
             break;
     }
     
-    PHFetchResult *fetchResult = [PHAsset fetchAssetsInAssetCollection:assetCollection options:options];
+    PHFetchResult *fetched = [PHAsset fetchAssetsInAssetCollection:assetCollection options:options];
+    dict[assetCollection] = fetched;
+    
+    return fetched;
+}
+
+#pragma mark - UITableViewDataSource
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    NSInteger nb = self.assetCollections.count;
+    if(_showLoading) nb++;
+    return nb;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    if(section == self.assetCollections.count) return 1;
+    return (self.assetCollections[section].count == 0) ? 0 : self.assetCollections[section].count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if(indexPath.section == self.assetCollections.count)
+    {
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"LoadingCell" forIndexPath:indexPath];
+        UIActivityIndicatorView *activity = [cell.contentView viewWithTag:456];
+        if(activity == nil)
+        {
+            activity = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+            activity.tag = 456;
+            [cell.contentView addSubview:activity];
+            
+            NSLayoutConstraint *x = [NSLayoutConstraint constraintWithItem:activity
+                                                                 attribute:NSLayoutAttributeCenterX
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:cell.contentView
+                                                                 attribute:NSLayoutAttributeCenterX
+                                                                multiplier:1
+                                                                  constant:0];
+            [cell.contentView addConstraint:x];
+            
+            NSLayoutConstraint *y = [NSLayoutConstraint constraintWithItem:activity
+                                                                 attribute:NSLayoutAttributeCenterY
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:cell.contentView
+                                                                 attribute:NSLayoutAttributeCenterY
+                                                                multiplier:1
+                                                                  constant:0];
+            [cell.contentView addConstraint:y];
+            
+        }
+        
+        [activity startAnimating];
+        
+        return cell;
+    }
+    
+    
+    QBAlbumCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AlbumCell" forIndexPath:indexPath];
+    cell.tag = indexPath.row;
+    cell.borderWidth = 1.0 / self.traitCollection.displayScale;
+    
+    // Thumbnail
+    PHAssetCollection *assetCollection = self.assetCollections[indexPath.section][indexPath.row];
+    PHFetchResult *fetchResult = [self resultsForAssetCollection:assetCollection safe:YES];
     PHImageManager *imageManager = [PHImageManager defaultManager];
     
     if (fetchResult.count >= 3) {
@@ -368,31 +483,59 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     return cell;
 }
 
+- (NSArray<UITableViewRowAction *> *)tableView:(UITableView *)tableView editActionsForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if(!self.imagePickerController.debug) return @[];
+    
+    UITableViewRowAction *infos = [UITableViewRowAction rowActionWithStyle:UITableViewRowActionStyleNormal title:@"DEBUG" handler:^(UITableViewRowAction * _Nonnull action, NSIndexPath * _Nonnull ip) {
+        
+        PHAssetCollection *collection = self.assetCollections[ip.section][ip.row];
+        
+        NSString *msg = [collection description];
+        
+        msg = [msg stringByAppendingString:@"\n\n"];
+        
+        msg = [msg stringByAppendingString:[NSString stringWithFormat:@"canContainAssets : %@\n", (collection.canContainAssets) ? @"YES" : @"NO"]];
+        msg = [msg stringByAppendingString:[NSString stringWithFormat:@"canContainCollections : %@\n", (collection.canContainCollections) ? @"YES" : @"NO"]];
+        msg = [msg stringByAppendingString:[NSString stringWithFormat:@"estimatedAssetCount : %d", (int)collection.estimatedAssetCount]];
+        
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DEBUG" message:msg preferredStyle:UIAlertControllerStyleAlert];
+        
+        [alert addAction:[UIAlertAction actionWithTitle:@"Ok" style:UIAlertActionStyleCancel handler:nil]];
+        
+        [self presentViewController:alert animated:YES completion:nil];
+        
+    }];
+    
+    return @[infos];
+}
+
 
 #pragma mark - PHPhotoLibraryChangeObserver
 
-- (void)photoLibraryDidChange:(PHChange *)changeInstance
-{
-    dispatch_async(dispatch_get_main_queue(), ^{
-        // Update fetch results
-        NSMutableArray *fetchResults = [self.fetchResults mutableCopy];
-        
-        [self.fetchResults enumerateObjectsUsingBlock:^(PHFetchResult *fetchResult, NSUInteger index, BOOL *stop) {
-            PHFetchResultChangeDetails *changeDetails = [changeInstance changeDetailsForFetchResult:fetchResult];
-            
-            if (changeDetails) {
-                [fetchResults replaceObjectAtIndex:index withObject:changeDetails.fetchResultAfterChanges];
-            }
-        }];
-        
-        if (![self.fetchResults isEqualToArray:fetchResults]) {
-            self.fetchResults = fetchResults;
-            
-            // Reload albums
-            [self updateAssetCollections];
-            [self.tableView reloadData];
-        }
-    });
-}
+//- (void)photoLibraryDidChange:(PHChange *)changeInstance
+//{
+//    dispatch_async(dispatch_get_main_queue(), ^{
+//        // Update fetch results
+//        NSMutableArray *fetchResults = [self.fetchResults mutableCopy];
+//        
+//        [self.fetchResults enumerateObjectsUsingBlock:^(PHFetchResult *fetchResult, NSUInteger index, BOOL *stop) {
+//            PHFetchResultChangeDetails *changeDetails = [changeInstance changeDetailsForFetchResult:fetchResult];
+//            
+//            if (changeDetails) {
+//                [fetchResults replaceObjectAtIndex:index withObject:changeDetails.fetchResultAfterChanges];
+//            }
+//        }];
+//        
+//        if (![self.fetchResults isEqualToArray:fetchResults]) {
+//            self.fetchResults = fetchResults;
+//            
+//            // Reload albums
+//            [self updateAssetCollectionsWithCompletions:^{
+//                [self.tableView reloadData];
+//            }];
+//        }
+//    });
+//}
 
 @end
