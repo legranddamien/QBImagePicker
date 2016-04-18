@@ -16,6 +16,8 @@
 #import "QBImagePickerController.h"
 #import "QBAssetsViewController.h"
 
+#define LAST_ALBUM_KEY @"qb.albums.last_album.key"
+
 static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     return CGSizeMake(size.width * scale, size.height * scale);
 }
@@ -94,6 +96,37 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
                 
                 [self.tableView endUpdates];
                 
+                
+                NSString *localIndentifier = [[NSUserDefaults standardUserDefaults] stringForKey:LAST_ALBUM_KEY];
+                if(localIndentifier)
+                {
+                    NSInteger section = 0;
+                    BOOL found = NO;
+                    for (NSArray *array in _assetCollections)
+                    {
+                        NSInteger row = 0;
+                        
+                        for (PHAssetCollection *collection in array)
+                        {
+                            if([collection.localIdentifier isEqualToString:localIndentifier])
+                            {
+                                found = YES;
+                                [self openAlbumAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
+                                break;
+                            }
+                            
+                            row++;
+                        }
+                        
+                        if(found)
+                        {
+                            break;
+                        }
+                        
+                        section++;
+                    }
+                }
+                
             }];
             
         }];
@@ -130,9 +163,23 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
-    QBAssetsViewController *assetsViewController = segue.destinationViewController;
-    assetsViewController.imagePickerController = self.imagePickerController;
-    assetsViewController.assetCollection = self.assetCollections[self.tableView.indexPathForSelectedRow.section][self.tableView.indexPathForSelectedRow.row];
+    [self configureAssetController:segue.destinationViewController
+                     withIndexPath:self.tableView.indexPathForSelectedRow];
+}
+
+- (void)configureAssetController:(QBAssetsViewController *)controller withIndexPath:(NSIndexPath *)indexPath
+{
+    controller.imagePickerController = self.imagePickerController;
+    controller.assetCollection = self.assetCollections[indexPath.section][indexPath.row];
+    
+    [[NSUserDefaults standardUserDefaults] setObject:controller.assetCollection.localIdentifier forKey:LAST_ALBUM_KEY];
+}
+
+- (void)openAlbumAtIndexPath:(NSIndexPath *)indexPath
+{
+    QBAssetsViewController *controller = [self.storyboard instantiateViewControllerWithIdentifier:@"QBAssetsViewController"];
+    [self configureAssetController:controller withIndexPath:indexPath];
+    [self.navigationController pushViewController:controller animated:YES];
 }
 
 
