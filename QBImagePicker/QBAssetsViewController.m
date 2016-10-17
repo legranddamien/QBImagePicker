@@ -160,6 +160,19 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 }
 
 
+- (void)didAddDisalowedAsset:(PHAsset *)asset
+{
+    NSInteger index = [self.fetchResult indexOfObject:asset];
+    if(index != NSNotFound)
+    {
+        [self.collectionView performBatchUpdates:^{
+            [self.collectionView reloadItemsAtIndexPaths:@[[NSIndexPath indexPathForItem:index inSection:0]]];
+        } completion:^(BOOL finished) {
+            
+        }];
+    }
+}
+
 #pragma mark - Accessors
 
 - (void)scrollToBottom
@@ -522,6 +535,15 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
         [collectionView selectItemAtIndexPath:indexPath animated:NO scrollPosition:UICollectionViewScrollPositionNone];
     }
     
+    if([self.imagePickerController.disalowedAssets containsObject:asset])
+    {
+        cell.alpha = 0.3;
+    }
+    else
+    {
+        cell.alpha = 1.0;
+    }
+    
     return cell;
 }
 
@@ -592,6 +614,11 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     if ([self.imagePickerController.delegate respondsToSelector:@selector(qb_imagePickerController:shouldSelectAsset:)]) {
         PHAsset *asset = self.fetchResult[indexPath.item];
         return [self.imagePickerController.delegate qb_imagePickerController:self.imagePickerController shouldSelectAsset:asset];
+    }
+    
+    if([self.imagePickerController.disalowedAssets containsObject:self.fetchResult[indexPath.item]])
+    {
+        return NO;
     }
     
     if ([self isAutoDeselectEnabled]) {

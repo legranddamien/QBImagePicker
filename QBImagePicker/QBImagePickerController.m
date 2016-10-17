@@ -11,6 +11,7 @@
 
 // ViewControllers
 #import "QBAlbumsViewController.h"
+#import "QBAssetsViewController.h"
 
 @interface QBImagePickerController ()
 
@@ -41,6 +42,7 @@
         self.showEmptyCollections = YES;
         
         _selectedAssets = [NSMutableOrderedSet orderedSet];
+        _disalowedAssets = [NSMutableOrderedSet orderedSet];
         
         // Get asset bundle
         self.assetBundle = [NSBundle bundleForClass:[self class]];
@@ -57,6 +59,19 @@
     }
     
     return self;
+}
+
+- (void)addDisallowedAsset:(PHAsset *)asset
+{
+    [_disalowedAssets addObject:asset];
+    
+    for (UIViewController *vc in _albumsNavigationController.viewControllers)
+    {
+        if([vc isKindOfClass:[QBAssetsViewController class]])
+        {
+            [(QBAssetsViewController *)vc didAddDisalowedAsset:asset];
+        }
+    }
 }
 
 - (void)setUpAlbumsViewController
