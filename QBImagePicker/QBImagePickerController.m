@@ -90,4 +90,21 @@
     self.albumsNavigationController = navigationController;
 }
 
+#pragma mark - Status Bar
+
+- (BOOL)prefersStatusBarHidden
+{
+    return self.presentingViewController.prefersStatusBarHidden;
+}
+
+- (UIStatusBarStyle)preferredStatusBarStyle
+{
+    return self.presentingViewController.preferredStatusBarStyle;
+}
+
+- (UIStatusBarAnimation)preferredStatusBarUpdateAnimation
+{
+    return self.presentingViewController.preferredStatusBarUpdateAnimation;
+}
+
 @end
