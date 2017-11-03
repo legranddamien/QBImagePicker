@@ -55,6 +55,10 @@
     self.preferredContentSize = CGSizeMake(w, (w / _asset.pixelWidth) * _asset.pixelHeight);
     
     _thumbnail = nil;
+    
+    if (@available(iOS 11.0, *)) {
+        self.imageView.accessibilityIgnoresInvertColors = YES;
+    }
 }
 
 - (void)viewDidAppear:(BOOL)animated

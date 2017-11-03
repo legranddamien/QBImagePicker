@@ -22,6 +22,12 @@
     
     self.imageView3.layer.borderColor = [[UIColor whiteColor] CGColor];
     self.imageView3.layer.borderWidth = borderWidth;
+    
+    if (@available(iOS 11.0, *)) {
+        self.imageView1.accessibilityIgnoresInvertColors = YES;
+        self.imageView2.accessibilityIgnoresInvertColors = YES;
+        self.imageView3.accessibilityIgnoresInvertColors = YES;
+    }
 }
 
 @end

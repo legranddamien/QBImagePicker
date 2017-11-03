@@ -495,6 +495,10 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     cell.tag = indexPath.item;
     cell.showsOverlayViewWhenSelected = self.imagePickerController.allowsMultipleSelection;
     
+    if (@available(iOS 11.0, *)) {
+        cell.imageView.accessibilityIgnoresInvertColors = YES;
+    }
+    
     // Image
     PHAsset *asset = self.fetchResult[indexPath.item];
     CGSize itemSize = [(UICollectionViewFlowLayout *)collectionView.collectionViewLayout itemSize];
