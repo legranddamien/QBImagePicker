@@ -113,7 +113,7 @@
     
     _requestID = [[PHImageManager defaultManager] requestImageForAsset:_asset targetSize:_imageView.bounds.size contentMode:PHImageContentModeAspectFill options:options resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
         
-        _imageView.image = result;
+        self.imageView.image = result;
         
     }];
 }
@@ -130,14 +130,14 @@
         
         dispatch_async(dispatch_get_main_queue(), ^(void){
             
-            _player = [[AVPlayer alloc] initWithPlayerItem:playerItem];
-            AVPlayerLayer *layer = [AVPlayerLayer playerLayerWithPlayer:_player];
+            self.player = [[AVPlayer alloc] initWithPlayerItem:playerItem];
+            AVPlayerLayer *layer = [AVPlayerLayer playerLayerWithPlayer:self.player];
             layer.videoGravity = AVLayerVideoGravityResizeAspectFill;
             layer.frame = self.view.bounds;
             [self.view.layer addSublayer:layer];
-            _playerLayer = layer;
+            self.playerLayer = layer;
             
-            [_player play];
+            [self.player play];
             
         });
         

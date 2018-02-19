@@ -83,7 +83,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
             
             [self updateAssetCollectionsForSection:3 withCompletions:^{
                
-                _showLoading = NO;
+                self.showLoading = NO;
                 
                 [self.tableView beginUpdates];
                 
@@ -102,7 +102,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
                 {
                     NSInteger section = 0;
                     BOOL found = NO;
-                    for (NSArray *array in _assetCollections)
+                    for (NSArray *array in self.assetCollections)
                     {
                         NSInteger row = 0;
                         
@@ -247,7 +247,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
         
         NSMutableArray *albums = [NSMutableArray array];
-        _resultsUpdate = [NSMutableDictionary dictionaryWithDictionary:_results];
+        self.resultsUpdate = [NSMutableDictionary dictionaryWithDictionary:self.results];
         
         
         for (PHFetchResult *fetchResult in self.fetchResults) {
@@ -292,8 +292,8 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
         
         dispatch_async(dispatch_get_main_queue(), ^(void){
             
-            _results = [NSMutableDictionary dictionaryWithDictionary:_resultsUpdate];
-            _resultsUpdate = nil;
+            self.results = [NSMutableDictionary dictionaryWithDictionary:self.resultsUpdate];
+            self.resultsUpdate = nil;
             
             [self.assetCollections addObject:[NSArray arrayWithArray:albums]];
             if(completion) completion();
