@@ -159,6 +159,10 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     [[PHPhotoLibrary sharedPhotoLibrary] unregisterChangeObserver:self];
 }
 
+- (UIStatusBarStyle)preferredStatusBarStyle
+{
+    return UIStatusBarStyleDefault;
+}
 
 - (void)didAddDisalowedAsset:(PHAsset *)asset
 {

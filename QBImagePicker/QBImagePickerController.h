@@ -11,6 +11,9 @@
 
 @class QBImagePickerController;
 
+@interface QBNavigationController: UINavigationController
+@end
+
 @protocol QBImagePickerControllerDelegate <NSObject>
 
 @optional

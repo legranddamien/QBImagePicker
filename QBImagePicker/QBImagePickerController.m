@@ -13,6 +13,15 @@
 #import "QBAlbumsViewController.h"
 #import "QBAssetsViewController.h"
 
+@implementation QBNavigationController
+
+- (UIStatusBarStyle)preferredStatusBarStyle
+{
+    return (self.topViewController) ? self.topViewController.preferredStatusBarStyle : UIStatusBarStyleDefault;
+}
+
+@end
+
 @interface QBImagePickerController ()
 
 @property (nonatomic, strong) UINavigationController *albumsNavigationController;
@@ -78,7 +87,7 @@
 {
     // Add QBAlbumsViewController as a child
     UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"QBImagePicker" bundle:self.assetBundle];
-    UINavigationController *navigationController = [storyboard instantiateViewControllerWithIdentifier:@"QBAlbumsNavigationController"];
+    QBNavigationController *navigationController = [storyboard instantiateViewControllerWithIdentifier:@"QBAlbumsNavigationController"];
     
     [self addChildViewController:navigationController];
     
