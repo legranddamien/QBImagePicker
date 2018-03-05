@@ -94,12 +94,12 @@
 
 - (BOOL)prefersStatusBarHidden
 {
-    return self.presentingViewController.prefersStatusBarHidden;
+    return NO;
 }
 
 - (UIStatusBarStyle)preferredStatusBarStyle
 {
-    return self.presentingViewController.preferredStatusBarStyle;
+    return UIStatusBarStyleDefault;
 }
 
 - (UIStatusBarAnimation)preferredStatusBarUpdateAnimation
